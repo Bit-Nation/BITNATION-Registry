@@ -60,4 +60,3 @@ contract CitizenRegistry {
 	// A citizen must not have any application
 	function cancelCitizenship() mustBeCitizen(msg.sender);
 }
-

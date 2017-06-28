@@ -20,6 +20,8 @@ contract Nation is Ownable, CitizenRegistry {
 
 	// This is sad...
 	// Typically: move funds (if some) and self-destruct
-	function onCollapse() onlyRegistry;
+	function onCollapse() onlyRegistry {
+		selfdestruct(owner);
+	}
 }
 
