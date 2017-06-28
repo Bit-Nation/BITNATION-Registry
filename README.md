@@ -4,6 +4,8 @@ Welcome to BITNATION's registry.
 
 This is a collection of smart contracts to deploy the registry.
 
+For more information and documentation, please go to `doc`.
+
 # Building
 
 Please install truffle first: `sudo npm install -g truffle`.
