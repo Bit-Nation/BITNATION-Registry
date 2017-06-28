@@ -21,8 +21,12 @@ A DBVN is: a code of law, a constitution, a decision pool, a group of citizens a
 
 A code of law represents a basic set of laws, owners have the ability to add laws.
 
+The various code of law implementations allows DBVN's creator to select a system of law that has already been established to start from, such as US Common Law, or choose to start from scratch.
+
 
 ## Constitution
+
+The constitution is a verbal set of principles that can be interpreted and expanded upon later. It should be used to direct the development of the DBVN's code.
 
 The consititution can be amended through articles, it defines the basic rules which the DBVN and its laws are based on.
 
