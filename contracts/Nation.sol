@@ -1,43 +1,25 @@
 pragma solidity ^0.4.4;
 
-contract Nation {
-	uint public nbApplications;
-	address[] public pendingApplications;
-	mapping (address => bool) hasPendingApplication;
+import "zeppelin/contracts/ownership/Ownable.sol";
 
-        uint public nbCitizens;
-        address[] public citizens;
-        mapping (address => bool) isCitizen;
+import "./dbvn/CitizenRegistry.sol";
 
-	modifier mustHaveApplication(address addr) {
-		if (!hasPendingApplication[addr]) throw;
+contract Nation is Ownable, CitizenRegistry {
+	address registry;
+
+	modifier onlyRegistry {
+		if (msg.sender != registry) {
+			throw;
+		}
 		_;
 	}
 
-	modifier mustHaveNoApplication(address addr) {
-		if (hasPendingApplication[addr]) throw;
-		_;
+	function setRegistry(address _registry) onlyOwner {
+		registry = _registry;
 	}
-
-	modifier mustBeCitizen(address addr) {
-		if (!isCitizen[addr]) throw;
-		_;
-	}
-
-	modifier mustNotBeCitizen(address addr) {
-		if (isCitizen[addr]) throw;
-		_;
-	}
-
-	// An applicant must not be a citizen
-	function applyForCitizenship() mustHaveNoApplication(msg.sender) mustNotBeCitizen(msg.sender);
-	function cancelApplication() mustHaveApplication(msg.sender) mustNotBeCitizen(msg.sender);
-
-	// A citizen must not have any application
-	function cancelCitizenship() mustHaveNoApplication(msg.sender) mustBeCitizen(msg.sender);
 
 	// This is sad...
 	// Typically: move funds (if some) and self-destruct
-	function onCollapse();
+	function onCollapse() onlyRegistry;
 }
 
