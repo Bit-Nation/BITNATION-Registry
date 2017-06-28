@@ -1,7 +1,10 @@
-> _Name_: DBVN_101
-> _Status_: draft
-> _Author_: Eliott Teissonniere
-> _Created_: 28th of June 2017
+> *Name*: DBVN_101
+
+> *Status*: draft
+
+> *Author*: Eliott Teissonniere (aka DeveloppSoft)
+
+> *Created*: 28th of June 2017
 
 # Bitnation DBVN_101 standard
 
