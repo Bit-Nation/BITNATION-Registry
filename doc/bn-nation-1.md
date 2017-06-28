@@ -8,7 +8,7 @@
 
 # Bitnation DBVN_101 standard
 
-Having a Standard to write DBVN is essential to allow users and DAPPs to interact seamlessly and in a convenient way with your DBVN.
+Having a Standard to write Decentralised Borderless Virtual Nation (DBVN) is essential to allow users and DAPPs to interact seamlessly and in a convenient way with your DBVN.
 
 To do so, we established a basic standard all DBVN need to apply, it is described in the following document.
 
