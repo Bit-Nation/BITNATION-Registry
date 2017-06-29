@@ -12,9 +12,12 @@ Having a Standard to write Decentralised Borderless Virtual Nation (DBVN) is ess
 
 To do so, we established a basic standard all DBVN need to apply, it is described in the following document.
 
+
 # Basic interfaces
 
 A DBVN is: a code of law, a constitution, a decision pool, a group of citizens and a set of services, as well as some metadata.
+
+All DBVNs must implement the `onCollapse` function, which is called by the registry when the creator of the nation decides to unregister it. By default, it withdraw all funds to the `backup` address and self destroy.
 
 
 ## Code of law
@@ -51,7 +54,19 @@ DBVNs are competing against each others to offer their citizens or all the users
 
 To fix that, the DBVNs must implement a basic "service registry" to publicly list their different services, then it's up to the DBVN to choose who is allowed or not to use those services (only citizens, everyone, only specific users...).
 
+Services are editable by the owner of the DBVN, in order to allow users to interact with services seamlessly, a Service is represented by:
+ -  a `name`
+ -  a `description`
+ -  an address, represented by `addr`
+ -  an `abi`, which is the JSON file needed to interact with service, the `abi` variable is an URL to download the file, it must be a Panthalassa blob, users will be prompted to review it.
+
+The following part require to implement functions to add or remove Services (even if they are limited to the owner) and to make the services list public.
+
 
 ## Metadata
 
 DBVN have a special part called "metadata", it allows it to specify a website, a flag or anything else which should be mentionned.
+
+The basic data required by the standard are `name`, `nation_type` (is it a democracy, a dictatorship, an holocracy?), those data should not be modified.
+
+It is recommended to implement a variable `website` to point users the DBVN's website, which could be modified by the owner of the DBVN.
