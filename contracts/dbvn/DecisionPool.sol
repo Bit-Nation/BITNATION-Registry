@@ -49,5 +49,6 @@ contract DecisionPool {
 		return p.hash == sha3(p.recipient, p.amount, txBytecode);
 	}
 
-	function vote(uint proposalID, bool support, string justification) returns (uint VoteID); 
+	function vote(uint proposalID, bool support, string justification) returns (uint VoteID);
+	function getVote(uint VoteID) returns (address voter, bool inSupport, string comment); 
 }
