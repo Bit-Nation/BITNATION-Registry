@@ -18,7 +18,7 @@ contract CitizenRegistry {
 
 	event UserChanged(address user);
 
-	function applyForCitizenship() return (uint ApplicationID);
+	function applyForCitizenship() returns (uint ApplicationID);
 	function cancelApplication(uint id);
 	function acceptApplication(uint id);
 

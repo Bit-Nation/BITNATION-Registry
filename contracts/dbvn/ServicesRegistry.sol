@@ -22,6 +22,6 @@ contract ServicesRegistry {
 		allServices.push(Service("", "", 0x0, "", false, now));
 	}
 
-	function addService(string _name, string _description, address _addr, string _abi) return (uint ServiceID);
+	function addService(string _name, string _description, address _addr, string _abi) returns (uint ServiceID);
 	function removeService(uint id);
 }

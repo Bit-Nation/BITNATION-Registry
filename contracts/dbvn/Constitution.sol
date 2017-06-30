@@ -11,6 +11,6 @@ contract Constitution {
 
 	event ArticleChanged(uint id);
 
-	function addArticle(string summary) return (uint ArticleID);
+	function addArticle(string summary) returns (uint ArticleID);
 	function repealArticle(uint id);
 }
