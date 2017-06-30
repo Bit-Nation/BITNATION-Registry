@@ -4,7 +4,7 @@ contract CitizenRegistry {
 	uint public nbUsers;
         address[] public AllUsers;
 
-	mapping (address => User) users;
+	mapping(address => User) public users;
 
 	struct User {
 		address addr;

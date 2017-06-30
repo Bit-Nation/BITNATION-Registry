@@ -9,16 +9,11 @@ import "./Nation.sol";
 
 // The set of Zeppelin's HasNo* contracts let the owner take back its ETH, and (just in case) the tokens or contracts associated
 contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
-	event NationCreated(address at, address creator, string name, string nation_type, string meta);
-	event NationCollapsed(address nation);
-
-	event NewRate(address nation, address rater, bool inSupport, string reason);
-
 	uint public minimumBid;
 
 	uint public nbNations;
 	address[] public nationsList;
-	mapping (address => NationStore) public nations;
+	mapping(address => NationStore) public nations;
 
 	struct NationStore {
 		address creator;
@@ -41,6 +36,11 @@ contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
 		bool inSupport;
 		string reason;
 	}
+
+	event NationCreated(address at, address creator, string name, string nation_type, string meta);
+	event NationCollapsed(address nation);
+
+	event NewRate(address nation, address rater, bool inSupport, string reason);
 
 	modifier notCollapsed(address _at) {
 		if (nations[_at].collapsed) {

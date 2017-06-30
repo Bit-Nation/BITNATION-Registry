@@ -4,8 +4,8 @@ contract DecisionPool {
 	uint public nbProposals;
 	Proposal[] public allProposals;
 
-	uint debatingPeriod;
-	uint minimumApproval;
+	uint public debatingPeriod;
+	uint public minimumApproval;
 
 	struct Proposal {
 		address author;
