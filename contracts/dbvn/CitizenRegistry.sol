@@ -1,62 +1,26 @@
 pragma solidity ^0.4.4;
 
 contract CitizenRegistry {
-	enum UserInfo { UnRegistered, HasApplication, IsCitizen }
+	uint public nbUsers;
+        address[] public AllUsers;
 
-	uint public nbApplications;
-	address[] public pendingApplications;
+	mapping (address => User) users;
 
-        uint public nbCitizens;
-        address[] public citizens;
+	struct User {
+		address addr;
 
-	// Enum converted to uint for safety reasons (and clarity of code)
-        mapping (address => uint) users;
+		bool hasApplication;
+		uint applicationDate;
 
-	modifier mustBeRegistered(address addr) {
-                if (UserInfo(users[addr]) == UserInfo.UnRegistered) {
-			throw;
-		}
-                _;
-        }
-
-        modifier mustNotBeRegistered(address addr) {
-                if (UserInfo(users[addr]) == UserInfo.UnRegistered) {
-			throw;
-		}
-                _;
-        }
-
-	modifier mustHaveApplication(address addr) {
-		if (UserInfo(users[addr]) != UserInfo.HasApplication) {
-			throw;
-		}
-		_;
+		bool isCitizen;
+		uint citizenSince;
 	}
 
-	modifier mustHaveNoApplication(address addr) {
-		if (UserInfo(users[addr]) == UserInfo.HasApplication) {
-			throw;
-		}
-		_;
-	}
+	event UserChanged(address user);
 
-	modifier mustBeCitizen(address addr) {
-		if (UserInfo(users[addr]) != UserInfo.IsCitizen) {
-			throw;
-		}
-		_;
-	}
+	function applyForCitizenship() return (uint ApplicationID);
+	function cancelApplication(uint id);
+	function acceptApplication(uint id);
 
-	modifier mustNotBeCitizen(address addr) {
-		if (UserInfo(users[addr]) == UserInfo.IsCitizen) {
-			throw;
-		}
-		_;
-	}
-
-	function applyForCitizenship() mustBeRegistered(msg.sender);
-	function cancelApplication() mustHaveApplication(msg.sender);
-
-	// A citizen must not have any application
-	function cancelCitizenship() mustBeCitizen(msg.sender);
+	function cancelCitizenship(uint id);
 }
