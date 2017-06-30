@@ -5,10 +5,13 @@ import "zeppelin/contracts/ownership/Ownable.sol";
 import "./dbvn/CitizenRegistry.sol";
 import "./dbvn/Metadata.sol";
 import "./dbvn/ServicesRegistry.sol";
+import "./dbvn/Constitution.sol";
+import "./dbvn/DecisionPool.sol";
+import "./dbvn/CodeOfLaw.sol";
 
-contract Nation is Ownable, CitizenRegistry, Metadata, ServicesRegistry {
-	address registry;
-	address backup;
+contract Nation is Ownable, CitizenRegistry, Metadata, ServicesRegistry, Constitution, DecisionPool, CodeOfLaw {
+	address public registry;
+	address public backup;
 
 	modifier onlyRegistry {
 		if (msg.sender != registry) {
