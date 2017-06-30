@@ -20,7 +20,7 @@ contract DecisionPool {
 		uint waitingWindow;
 		
 		bool executed;
-		bool passed;
+		bool triggered;
 
 		uint nbVotes;
 		Vote[] allVotes;
