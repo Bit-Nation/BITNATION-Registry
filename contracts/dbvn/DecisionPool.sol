@@ -42,7 +42,7 @@ contract DecisionPool {
 
 	function changeRules(uint debatingPeriod, uint minimumApproval);
 
-	function newProposalInEther(address to, uint amount, string description, string tag, bytes txBytecode) returns (uint ProposalID);
+	function newProposal(address to, uint amount, string description, string tag, bytes txBytecode) returns (uint ProposalID);
 	function executeProposal(address proposalID, bytes txBytecode) returns (bool proposalPassed);
 	function checkProposalHash(uint proposalID, bytes txBytecode) constant returns (bool isHashValid) {
 		Proposal p = allProposals[proposalID];
