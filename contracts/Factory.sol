@@ -21,10 +21,6 @@ contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
 
 		bool collapsed;
 
-		string name;
-		string nation_type; // Holocracy, meritocracy...
-		string meta;        // To store an URL, a description...
-
 		uint nbRaters;
 		address[] raters;
 		mapping (address => Rate) rates;
@@ -37,7 +33,7 @@ contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
 		string reason;
 	}
 
-	event NationCreated(address at, address creator, string name, string nation_type, string meta);
+	event NationCreated(address at, address creator);
 	event NationCollapsed(address nation);
 
 	event NewRate(address nation, address rater, bool inSupport, string reason);
@@ -87,7 +83,7 @@ contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
 	}
 
 	// We require creators to pay a minimum to fund development
-	function registerNation(address _at, string _name, string _type, string _meta) payable shouldNotExist(_at) checkBid {
+	function registerNation(address _at) payable shouldNotExist(_at) checkBid {
 		nbNations++;
 		nationsList.push(_at); // Add it to the list
 
@@ -95,12 +91,9 @@ contract Factory is Ownable, HasNoContracts, HasNoEther, HasNoTokens {
 		n.creator = msg.sender;
 		n.nation = Nation(_at);
 		n.collapsed = false;
-		n.name = _name;
-		n.nation_type = _type;
-		n.meta = _meta;
 		n.raters.push(0x0);              // Voter 0
 		
-		NationCreated(_at, msg.sender, _name, _type, _meta);
+		NationCreated(_at, msg.sender);
 	}
 
 	// We ask the creator to provide the ID of its nation: the place of the nation in the list `nationsList`
