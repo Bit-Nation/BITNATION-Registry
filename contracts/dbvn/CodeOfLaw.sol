@@ -8,6 +8,8 @@ contract CodeOfLaw {
 	uint public nbLaws;
 	Law[] public allLaws;
 
+	string codeOfLawReference;
+
 	struct Law {
 		string text;
 		bool isValid;
@@ -15,7 +17,10 @@ contract CodeOfLaw {
 	}
 
 	event LawChanged(uint lawID);
+	event CodeOfLawReferenceChanged(string new_reference);
 
 	function addLaw(string text) returns (uint lawID);
 	function repealLaw(uint lawID);
+
+	function setCodeOfLawReference(string _new);
 }

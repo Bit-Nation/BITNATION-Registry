@@ -38,6 +38,7 @@ A valid DBVN_101 code of law interface must include (interface [here](../contrac
     -  `text` to store law's text.
     -  the `isValid` boolean to tell the users if the law is still valid or not (if it has been repealed).
     -  `createdAt` to register the law's creation date (through `now`).
+ -  the string `codeOfLawReference` is used to refer to an ipfs ressource where the articles are described and explained, it is modifiable via `setCodeOfLawReference`, which triggers the event `CodeOfLawReferenceChanged`.
  -  the event `LawChanged` to be triggered when a law is created or repealed.
  -  the functions `addLaw` and `repealLaw` to do the job associated, all laws are identified via their ID (i.e. position in `allLaws`).
 
@@ -56,6 +57,7 @@ A constitution interface, as defined in [Constitution.sol](../contracts/dbvn/Con
     -  the string `summary` to describe the article, such as `We are Privacy and Security`.
     -  the boolean `valid` to check if an article has been repealed or not.
     -  the unsigned integer `createdAt` to log the date of creation.
+ -  the string `constitutionReference` is used to refer to an ipfs ressource where the articles are described and explained, it is modifiable via `setConstitutionReference`, which triggers the event `ConstitutionReferenceChanged`.
  -  the event `ArticleChanged`, triggered on article modification.
  -  the functions `addArticle` and `repealArticle`.
 
