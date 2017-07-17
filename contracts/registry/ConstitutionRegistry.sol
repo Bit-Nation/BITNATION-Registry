@@ -166,4 +166,9 @@ contract ConstitutionRegistry {
     inSupport = v.inSupport;
     timestamp = v.timestamp;
   }
+
+    // Used by NationFactory
+  function exist(bytes32 constitution) returns (bool) {
+    return allConstitutions[constitution].maintainer != address(0x0);
+  }
 }

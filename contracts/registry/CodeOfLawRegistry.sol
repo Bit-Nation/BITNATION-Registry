@@ -166,4 +166,9 @@ contract CodeOfLawRegistry {
     inSupport = v.inSupport;
     timestamp = v.timestamp;
   }
+
+  // Used by NationFactory
+  function exist(bytes32 codeOfLaw) returns (bool) {
+    return allCodesOfLaw[codeOfLaw].maintainer != address(0x0);
+  }
 }
