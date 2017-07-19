@@ -23,7 +23,7 @@ contract EntityRegistry {
   event NewVote(address entity, address voter, bool inSupport, uint voteId);
 
   function register(string panthalassaId) {
-    require(sha3(panthalassaId) != 0x0);
+    require(sha3(panthalassaId) != sha3(""));
     require(allEntities[msg.sender].timestamp == 0);
 
     Entity e = allEntities[msg.sender];
