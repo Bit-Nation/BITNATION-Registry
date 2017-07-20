@@ -79,4 +79,14 @@ contract StakeToken is Ownable, StandardToken {
     MintFinished();
     return true;
   }
+
+  // If someone start behaving in an "evil" way, the DBVN can empty its account
+  // Thus reducing its stake to 0
+  event AccountEmptied(address account);
+
+  function empty(address _from) onlyOwner {
+    balances[_from] = 0;
+    balances[owner] = balances[owner].add(balances[_from]);
+    AccountEmptied(_from);
+  }
 }
