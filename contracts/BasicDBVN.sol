@@ -1,279 +1,157 @@
 pragma solidity ^0.4.4;
 
-// This is a very basic DBVN implementation, a better one should be upcoming
+// TODO: make that upgradeable
 
-// TODO: stake should be a token
-// TODO: upgradeable
-
+import "./StakeToken.sol";
 import "zeppelin/contracts/ownership/Ownable.sol";
+import "zeppelin/contracts/ReentrancyGuard.sol";
 
-contract BasicDBVN {
-  uint waitingWindowInMinute;
-  uint minimumStakeSum;
-  uint minimumAgreement;
+contract BasicDBVN is Ownable, ReentrancyGuard {
+  uint public minimumQuorum;
+  uint public debatingPeriod;
 
-  mapping (address => Member) public allMembers;
-  mapping (bytes32 => Proposal) public allProposals;
-  mapping (address => string) public allApplications;
+  Proposal[] public proposals;
+  uint public numberOfProposals;
 
-  struct Member {
-    uint stake;
+  // The ERC20 token is used as shares
+  StakeToken public sharesToken;
 
-    bool isMember;
-    uint memberSince;
-    uint canceledAt;
+  event ProposalAdded(uint proposalID, bytes32 transactionBytecode, string description);
+  event ProposalTallied(uint proposalID, uint result, uint quorum, bool active);
 
-    string name;
+  event Voted(uint proposalID, uint voteID, bool inSupport, address voter);
 
-    // Permissions
-    bool canEditPermissions;
-    bool canEditStake;
+  event ChangeOfRules(uint minimumQuorum, uint debatingPeriodInMinutes);
 
-    bool canEditSettings;
-
-    bool canRefuseApplications;
-    bool canAcceptApplications;
-
-    bool canRevokeMembership;
-
-    bool canAddProposals;
-    bool canVoteOnProposals;
-    bool canExecuteProposals;
-  }
+  event Deposit(address sender, uint value);
 
   struct Proposal {
     address submitter;
 
-    address beneficiary;
-    uint ethAmount;
+    address recipient;
+    uint amount;
 
-    uint waitingWindow;
+    uint votingDeadline;
 
     bool executed;
-    bool passed;
-    bool proposalSucceedToExecute;
+    bool executionSuccess; // Used to log if we succeed executing the proposal
+    bool proposalPassed;
 
-    int agreement;
-    uint stakeSum;
+    bytes32 proposalHash;
 
-    mapping (address => bool) didVote;
+    uint numberOfVotes;
+    Vote[] votes;
+    mapping (address => bool) voted;
   }
 
-  event NewApplication(address applier);
-  event ApplicationCanceled(address applier);
-  event ApplicationAccepted(address accepter, address applier);
-  event ApplicationRefused(address refuser, address applier);
-
-  event MembershipRevoked(address revoker, address member);
-
-  event StakeChanged(address editor, address member, uint newStake);
-  event PermissionsChanged(address editor, address member, bool canEditPermissions, bool canEditStake, bool canEditSettings, bool canRefuseApplications, bool canAcceptApplications, bool canRevokeMembership, bool canAddProposals, bool canVoteOnProposals, bool canExecuteProposals);
-
-  event NewProposal(address by, bytes32 hash, bytes txCode);
-  event NewVote(bytes32 proposalHash, address voter, bool inSupport, uint stake);
-  event ProposalTallied(bytes32 proposalHash, bool passed, bool executionSuccess);
-
-  event NewSettings(address editor, uint waitingWindowInMinute, uint minimumStakeSum, uint minimumAgreement);
-
-  event Deposit(address sender, uint value);
-
-  function MemberRegistry(uint myStake, string myName) {
-    // Make owner a "superuser"
-    Member m = allMembers[msg.sender];
-    m.stake = myStake;
-    m.name = myName;
-    m.isMember = true;
-    m.memberSince = now;
-
-    m.canEditPermissions = true;
-    m.canEditStake = true;
-    m.canEditSettings = true;
-    m.canRefuseApplications = true;
-    m.canAcceptApplications = true;
-    m.canRevokeMembership = true;
-    m.canAddProposals = true;
-    m.canVoteOnProposals = true;
-    m.canExecuteProposals = true;
+  struct Vote {
+    bool inSupport;
+    address voter;
   }
 
-  function applyForMembership(string myName) {
-    require(sha3(allApplications[msg.sender]) == 0x0);
-
-    allApplications[msg.sender] = myName;
-
-    NewApplication(msg.sender);
+  modifier onlyShareholders {
+    require(sharesToken.balanceOf(msg.sender) != 0);
+    _;
   }
 
-  function cancelApplication() {
-    require(sha3(allApplications[msg.sender]) != 0x0);
+  function BasicDBVN(uint minimumSharesToPassAVote, uint minutesForDebate, uint initialShares) {
+    // We deploy STK
+    sharesToken = new StakeToken();
+    sharesToken.mint(msg.sender, initialShares);
 
-    allApplications[msg.sender] = "";
-
-    ApplicationCanceled(msg.sender);
+    changeVotingRules(minimumSharesToPassAVote, minutesForDebate);
   }
 
-  function revokeMyMembership() {
-    require(allMembers[msg.sender].isMember); // Check if member
+  function changeVotingRules(uint minimumSharesToPassAVote, uint minutesForDebate) onlyOwner {
+    require(minimumSharesToPassAVote > 0);
 
-    allMembers[msg.sender].isMember = false;
-    allMembers[msg.sender].canceledAt = now;
+    minimumQuorum = minimumSharesToPassAVote;
+    debatingPeriod = minutesForDebate * 1 minutes;
 
-    allMembers[msg.sender].stake = 0;
-    allMembers[msg.sender].canEditPermissions = false;
-    allMembers[msg.sender].canEditStake = false;
-    allMembers[msg.sender].canEditSettings = false;
-    allMembers[msg.sender].canRefuseApplications = false;
-    allMembers[msg.sender].canAcceptApplications = false;
-    allMembers[msg.sender].canRevokeMembership = false;
-    allMembers[msg.sender].canAddProposals = false;
-    allMembers[msg.sender].canVoteOnProposals = false;
-    allMembers[msg.sender].canExecuteProposals = false;
-
-    MembershipRevoked(msg.sender, msg.sender);
+    ChangeOfRules(minimumSharesToPassAVote, minutesForDebate);
   }
 
-  function refuseApplication(address applier) {
-    require(allMembers[msg.sender].canRefuseApplications);
-    require(sha3(allApplications[applier]) != 0x0);
+  function newProposal(address beneficiary, uint etherAmount, string JobDescription, bytes32 transactionBytecode) onlyShareholders returns (uint proposalID) {
+    proposalID = proposals.length++;
 
-    allApplications[applier] = "";
-
-    ApplicationRefused(msg.sender, applier);
-  }
-
-  function acceptApplication(address applier) {
-    require(allMembers[msg.sender].canAcceptApplications);
-    require(sha3(allApplications[applier]) != 0x0);
-
-    Member m = allMembers[applier];
-    m.name = allApplications[applier];
-    m.isMember = true;
-    m.memberSince = now;
-
-    ApplicationAccepted(msg.sender, applier);
-  }
-
-  function setStake(address member, uint newStake) {
-    require(allMembers[msg.sender].canEditStake);
-    require(allMembers[member].isMember);
-
-    allMembers[member].stake = newStake;
-
-    StakeChanged(msg.sender, member, newStake);
-  }
-
-  function setPermissions(address member, bool canEditPermissions, bool canEditStake, bool canEditSettings, bool canRefuseApplications, bool canAcceptApplications, bool canRevokeMembership, bool canAddProposals, bool canVoteOnProposals, bool canExecuteProposals) {
-    require(allMembers[msg.sender].canEditPermissions);
-    require(allMembers[member].isMember);
-
-    allMembers[member].canEditPermissions = canEditPermissions;
-    allMembers[member].canEditStake = canEditStake;
-    allMembers[member].canEditSettings = canEditSettings;
-    allMembers[member].canRefuseApplications = canRefuseApplications;
-    allMembers[member].canAcceptApplications = canAcceptApplications;
-    allMembers[member].canRevokeMembership = canRevokeMembership;
-    allMembers[member].canAddProposals = canAddProposals;
-    allMembers[member].canVoteOnProposals = canVoteOnProposals;
-    allMembers[member].canExecuteProposals = canExecuteProposals;
-
-    PermissionsChanged(msg.sender, member, canEditPermissions, canEditStake, canEditSettings, canRefuseApplications, canAcceptApplications, canRevokeMembership, canAddProposals, canVoteOnProposals, canExecuteProposals);
-  }
-
-  function revokeMembership(address member) {
-    require(allMembers[msg.sender].canRevokeMembership);
-    require(allMembers[member].isMember);
-
-    allMembers[member].isMember = false;
-    allMembers[member].canceledAt = now;
-
-    allMembers[member].stake = 0;
-    allMembers[member].canEditPermissions = false;
-    allMembers[member].canEditStake = false;
-    allMembers[member].canEditStake = false;
-    allMembers[member].canRefuseApplications = false;
-    allMembers[member].canAcceptApplications = false;
-    allMembers[member].canRevokeMembership = false;
-    allMembers[member].canAddProposals = false;
-    allMembers[member].canVoteOnProposals = false;
-    allMembers[member].canExecuteProposals = false;
-
-    MembershipRevoked(msg.sender, member);
-  }
-
-  function submitProposal(address beneficiary, uint ethAmount, string description, bytes txCode) returns (bytes32 proposalHash) {
-    require(allMembers[msg.sender].canAddProposals);
-
-    proposalHash = sha3(beneficiary, ethAmount, txCode);
-
-    assert(allProposals[proposalHash].waitingWindow != 0);
-
-    Proposal p = allProposals[proposalHash];
+    Proposal p = proposals[proposalID];
     p.submitter = msg.sender;
-    p.beneficiary = beneficiary;
-    p.ethAmount = ethAmount * 1 ether;
-    p.waitingWindow = now + (waitingWindowInMinute * 1 minutes);
+    p.recipient = beneficiary;
+    p.amount = etherAmount;
+    p.proposalHash = sha3(beneficiary, etherAmount, transactionBytecode);
+    p.votingDeadline = now + debatingPeriod;
 
-    NewProposal(msg.sender, proposalHash, txCode);
+    numberOfProposals += 1;
+
+    ProposalAdded(proposalID, transactionBytecode, JobDescription);
   }
 
-  function voteOnProposal(bytes32 proposalHash, bool inSupport) {
-    require(allMembers[msg.sender].canVoteOnProposals);
-    require(allMembers[msg.sender].stake > 0);
-    require(allProposals[proposalHash].waitingWindow > now);
-    require(!allProposals[proposalHash].didVote[msg.sender]);
+  function checkProposalCode(uint proposalNumber, bytes32 transactionBytecode) constant returns (bool hashIsValid) {
+    Proposal p = proposals[proposalNumber];
+    hashIsValid = p.proposalHash == sha3(p.recipient, p.amount, transactionBytecode);
+  }
 
-    allProposals[proposalHash].didVote[msg.sender] = true;
-    allProposals[proposalHash].stakeSum += allMembers[msg.sender].stake;
+  function vote(uint proposalNumber, bool inFavorOfProposal) onlyShareholders returns (uint voteID) {
+    Proposal p = proposals[proposalNumber];
 
-    if (inSupport) {
-      allProposals[proposalHash].agreement += int(allMembers[msg.sender].stake);
-    } else {
-      allProposals[proposalHash].agreement -= int(allMembers[msg.sender].stake);
+    require(!p.executed);
+    require(!p.voted[msg.sender]);
+
+    voteID = p.votes.length++;
+    p.votes[voteID] = Vote({inSupport: inFavorOfProposal, voter: msg.sender});
+    p.voted[msg.sender] = true;
+    p.numberOfVotes += 1;
+
+    Voted(proposalNumber, voteID, inFavorOfProposal, msg.sender);
+  }
+
+  function executeProposal(uint proposalNumber, bytes32 transactionBytecode) nonReentrant {
+    // First, check a few things
+    require(checkProposalCode(proposalNumber, transactionBytecode));
+
+    Proposal p = proposals[proposalNumber];
+
+    require(p.votingDeadline > now);
+    require(!p.executed);
+
+    // Time to tally the votes
+    uint quorum = 0;
+    uint yea = 0;
+    uint nay = 0;
+
+    for (uint i = 0; i <  p.votes.length; ++i) {
+      Vote memory v = p.votes[i];
+      uint voteWeight = sharesToken.balanceOf(v.voter);
+      quorum += voteWeight;
+      if (v.inSupport) {
+        yea += voteWeight;
+      } else {
+        nay += voteWeight;
+      }
     }
 
-    NewVote(proposalHash, msg.sender, inSupport, allMembers[msg.sender].stake);
-  }
+    // Execute result
 
-  function executeProposal(bytes32 proposalHash, bytes txCode) {
-    require(allMembers[msg.sender].canExecuteProposals);
-    require(allProposals[proposalHash].submitter != address(0x0));
-    require(!allProposals[proposalHash].executed);
-    require(allProposals[proposalHash].waitingWindow < now);
-    require(allProposals[proposalHash].stakeSum >= minimumStakeSum);
+    // Not enough voters
+    assert(quorum >= minimumQuorum);
 
-    var testHash = sha3(allProposals[proposalHash].beneficiary, allProposals[proposalHash].ethAmount, txCode);
-    assert(proposalHash == testHash);
+    p.executed = true;
 
-    allProposals[proposalHash].executed = true;
-
-    var pass = allProposals[proposalHash].agreement > int(minimumAgreement);
-    var succeedToExecute = false;
-
-    allProposals[proposalHash].passed = true;
-
-    if (pass) {
-      succeedToExecute = allProposals[proposalHash].beneficiary.call.value(allProposals[proposalHash].ethAmount)(txCode);
+    if (yea > nay ) {
+      // Approved
+      p.proposalPassed = true;
+      if (p.recipient.call.value(p.amount * 1 ether)(transactionBytecode)) {
+        p.executionSuccess = true;
+      }
     }
 
-    allProposals[proposalHash].proposalSucceedToExecute = succeedToExecute;
-
-    ProposalTallied(proposalHash, pass, succeedToExecute);
-  }
-
-  function editSettings(uint newWaitingWindowInMinute, uint newMinimumStakeSum, uint newMinimumAgreement) {
-    require(allMembers[msg.sender].canEditSettings);
-
-    waitingWindowInMinute = newWaitingWindowInMinute;
-    minimumStakeSum = newMinimumStakeSum;
-    minimumAgreement = newMinimumAgreement;
-
-    NewSettings(msg.sender, newWaitingWindowInMinute, newMinimumStakeSum, newMinimumAgreement);
+    // Fire Events
+    ProposalTallied(proposalNumber, yea - nay, quorum, p.proposalPassed);
   }
 
   function () payable {
-    // Someone is depositing money, be a gentleman and buy him/her a beer
-    if (msg.value > 0) {
-      Deposit(msg.sender, msg.value);
-    }
+    require(msg.value > 0);
+    // Log the fact someone deposited ETH, so you can buy him a beer, or something else
+    Deposit(msg.sender, msg.value);
   }
 }
