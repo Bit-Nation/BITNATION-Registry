@@ -11,9 +11,7 @@ var DBVN_minutesForDebate = 60
 var DBVN_initialShares = 100
 
 module.exports = function(deployer) {
-  let contractReg = {}
   return deployer.deploy(EntityRegistry)
-    .then(() => deployer.deploy(ConstitutionRegistry))
     .then(() => deployer.deploy(ConstitutionRegistry))
     .then(() => deployer.deploy(CodeOfLawRegistry))
     .then(() => deployer.deploy(NationFactory, ConstitutionRegistry.address, CodeOfLawRegistry.address))
