@@ -10,6 +10,8 @@ contract BasicDBVN is Ownable, ReentrancyGuard {
   uint public minimumQuorum;
   uint public debatingPeriod;
 
+  uint maximumGas; // Let's not do a new theDAO
+
   Proposal[] public proposals;
   uint public numberOfProposals;
 
@@ -22,6 +24,7 @@ contract BasicDBVN is Ownable, ReentrancyGuard {
   event Voted(uint proposalID, uint voteID, bool inSupport, address voter);
 
   event ChangeOfRules(uint minimumQuorum, uint debatingPeriodInMinutes);
+  event SettingsChanged(uint maximumGas);
 
   event Deposit(address sender, uint value);
 
@@ -54,12 +57,13 @@ contract BasicDBVN is Ownable, ReentrancyGuard {
     _;
   }
 
-  function BasicDBVN(uint minimumSharesToPassAVote, uint minutesForDebate, uint initialShares) {
+  function BasicDBVN(uint minimumSharesToPassAVote, uint minutesForDebate, uint initialShares, uint maximumGas) {
     // We deploy STK
     sharesToken = new StakeToken();
     sharesToken.mint(msg.sender, initialShares);
 
     changeVotingRules(minimumSharesToPassAVote, minutesForDebate);
+    setSettings(maximumGas);
   }
 
   function changeVotingRules(uint minimumSharesToPassAVote, uint minutesForDebate) onlyOwner {
@@ -69,6 +73,12 @@ contract BasicDBVN is Ownable, ReentrancyGuard {
     debatingPeriod = minutesForDebate * 1 minutes;
 
     ChangeOfRules(minimumSharesToPassAVote, minutesForDebate);
+  }
+
+  function setSettings(uint maxGas) onlyOwner {
+    maximumGas = maxGas;
+
+    SettingsChanged(maximumGas);
   }
 
   function newProposal(address beneficiary, uint etherAmount, string JobDescription, bytes32 transactionBytecode) onlyShareholders returns (uint proposalID) {
@@ -140,7 +150,7 @@ contract BasicDBVN is Ownable, ReentrancyGuard {
     if (yea > nay ) {
       // Approved
       p.proposalPassed = true;
-      if (p.recipient.call.value(p.amount * 1 ether)(transactionBytecode)) {
+      if (p.recipient.call.gas(maximumGas).value(p.amount * 1 ether)(transactionBytecode)) {
         p.executionSuccess = true;
       }
     }
