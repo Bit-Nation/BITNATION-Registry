@@ -1,10 +1,11 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.13;
 
 contract ConstitutionRegistry {
-  mapping (bytes32 => Constitution) public allConstitutions;
+  uint public numConstitutions;
+  Constitution[] public allConstitutions;
 
   struct Constitution {
-    bytes32 parent; // In case of a fork
+    uint parent; // In case of a fork
 
     address maintainer;
     mapping (address => bool) isEditor;
@@ -13,8 +14,10 @@ contract ConstitutionRegistry {
     uint timestamp;
 
     Article[] allArticles;
+    uint numArticles;
 
     Vote[] allVotes;
+    uint numVotes;
     mapping (address => bool) didVote;
   }
 
@@ -34,65 +37,54 @@ contract ConstitutionRegistry {
     uint timestamp;
   }
 
-  modifier onlyEditor(bytes32 hash) {
-    require(allConstitutions[hash].isEditor[msg.sender]);
+  modifier onlyEditor(uint id) {
+    require(allConstitutions[id].isEditor[msg.sender]);
     _;
   }
 
-  modifier onlyMaintainer(bytes32 hash) {
-    require(allConstitutions[hash].maintainer == msg.sender);
+  modifier onlyMaintainer(uint id) {
+    require(allConstitutions[id].maintainer == msg.sender);
     _;
   }
 
-  event ConstitutionCreated(bytes32 constitution, address maintainer, string name, bytes32 parent);
+  event ConstitutionCreated(uint constitutionId, address maintainer, string name, uint parentId);
 
-  event MaintainershipTransfered(bytes32 constitution, address oldMaintainer, address newMaintainer);
-  event EditorshipChanged(bytes32 constitution, address editor, bool canEdit);
+  event MaintainershipTransfered(uint constitutionId, address oldMaintainer, address newMaintainer);
+  event EditorshipChanged(uint constitutionId, address editor, bool canEdit);
 
-  event ArticleChanged(bytes32 constitution, address editor, uint articleId, bool isValid);
+  event ArticleChanged(uint constitutionId, address editor, uint articleId, bool isValid);
 
-  event NewVote(bytes32 constitution, address voter, bool inSupport, uint voteId);
+  event NewVote(uint constitutionId, address voter, bool inSupport, uint voteId);
 
-  function createConstitution(string name) returns (bytes32 hash) {
-    hash = sha3(msg.sender, name);
+  function createConstitution(string constitutionName) returns (uint constitutionId) {
+    constitutionId = allConstitutions.length++;
 
-    // Check if it already exist
-    require(allConstitutions[hash].maintainer == address(0x0));
+    allConstitutions[constitutionId].maintainer = msg.sender;
+    allConstitutions[constitutionId].name = constitutionName;
+    allConstitutions[constitutionId].timestamp = now;
+    allConstitutions[constitutionId].isEditor[msg.sender] = true;
 
-    // Create the constitution
-    Constitution c = allConstitutions[hash];
-    c.maintainer = msg.sender;
-    c.isEditor[msg.sender] = true;
-    c.name = name;
-    c.timestamp = now;
+    numConstitutions++;
 
-    ConstitutionCreated(hash, msg.sender, name, 0x0);
+    ConstitutionCreated(constitutionId, msg.sender, constitutionName, 0);
   }
 
   // That function is a bit redundant with the one above
-  function forkConstitution(string newName, bytes32 parent) returns (bytes32 hash) {
-    // Parent must exist
-    require(allConstitutions[parent].maintainer != address(0x0));
+  function forkConstitution(string newName, uint parentId) returns (uint constitutionId) {
+    constitutionId = allConstitutions.length++;
 
-    // Check that the new one doesn't exist
-    hash = sha3(msg.sender, newName);
-    require(allConstitutions[hash].maintainer == address(0x0));
+    allConstitutions[constitutionId].maintainer = msg.sender;
+    allConstitutions[constitutionId].name = newName;
+    allConstitutions[constitutionId].timestamp = now;
+    allConstitutions[constitutionId].parent = parentId;
+    allConstitutions[constitutionId].isEditor[msg.sender] = true;
 
-    // Make the new one
-    Constitution c = allConstitutions[hash];
-    c.maintainer = msg.sender;
-    c.isEditor[msg.sender] = true;
-    c.name = newName;
-    c.timestamp = now;
-    c.parent = parent;
+    numConstitutions++;
 
-    // We could try to copy all the articles from parent to the new constitution
-    // But it would consume so much gas
-
-    ConstitutionCreated(hash, msg.sender, newName, parent);
+    ConstitutionCreated(constitutionId, msg.sender, newName, parentId);
   }
 
-  function changeMaintainership(bytes32 constitution, address newMaintainer) onlyMaintainer(constitution) {
+  function changeMaintainership(uint constitution, address newMaintainer) onlyMaintainer(constitution) {
     // Avoid some subefficient code
     require(allConstitutions[constitution].maintainer != newMaintainer);
 
@@ -106,45 +98,39 @@ contract ConstitutionRegistry {
     MaintainershipTransfered(constitution, msg.sender, newMaintainer);
   }
 
-  function changeEditorship(bytes32 constitution, address editor, bool canEdit) onlyMaintainer(constitution) {
+  function changeEditorship(uint constitution, address editor, bool canEdit) onlyMaintainer(constitution) {
     allConstitutions[constitution].isEditor[editor] = canEdit;
 
     EditorshipChanged(constitution, editor, canEdit);
   }
 
-  function addArticle(bytes32 constitution, string summary, string reference) onlyEditor(constitution) returns (uint articleId) {
+  function addArticle(uint constitution, string articleSummary, string articleReference) onlyEditor(constitution) returns (uint articleId) {
     articleId = allConstitutions[constitution].allArticles.length++;
 
-    Article a = allConstitutions[constitution].allArticles[articleId];
-    a.summary = summary;
-    a.reference = reference;
-    a.createdAt = now;
-    a.isValid = true;
+    allConstitutions[constitution].allArticles[articleId] = Article({summary: articleSummary, reference: articleReference, createdAt: now, isValid: true, repealedAt: 0});
+    allConstitutions[constitution].numArticles++;
 
     ArticleChanged(constitution, msg.sender, articleId, true);
   }
 
-  function repealArticle(bytes32 constitution, uint articleId) onlyEditor(constitution) {
-    Article a = allConstitutions[constitution].allArticles[articleId];
+  function repealArticle(uint constitution, uint articleId) onlyEditor(constitution) {
+    require(allConstitutions[constitution].allArticles[articleId].isValid);
 
-    require(a.isValid);
-
-    a.repealedAt = now;
-    a.isValid = false;
+    allConstitutions[constitution].allArticles[articleId].repealedAt = now;
+    allConstitutions[constitution].allArticles[articleId].isValid = false;
 
     ArticleChanged(constitution, msg.sender, articleId, false);
   }
 
-  function getArticle(bytes32 constitution, uint articleId) constant returns (string summary, string reference, bool isValid, uint createdAt, uint repealedAt) {
-    Article a = allConstitutions[constitution].allArticles[articleId];
-    summary = a.summary;
-    reference = a.reference;
-    isValid = a.isValid;
-    createdAt = a.createdAt;
-    repealedAt = a.repealedAt;
+  function getArticle(uint constitution, uint articleId) constant returns (string summary, string reference, bool isValid, uint createdAt, uint repealedAt) {
+    summary = allConstitutions[constitution].allArticles[articleId].summary;
+    reference = allConstitutions[constitution].allArticles[articleId].reference;
+    isValid = allConstitutions[constitution].allArticles[articleId].isValid;
+    createdAt = allConstitutions[constitution].allArticles[articleId].createdAt;
+    repealedAt = allConstitutions[constitution].allArticles[articleId].repealedAt;
   }
 
-  function vote(bytes32 constitution, bool inSupport) returns (uint voteId) {
+  function vote(uint constitution, bool voteInSupport) returns (uint voteId) {
     require(allConstitutions[constitution].maintainer != address(0x0));
     require(!allConstitutions[constitution].didVote[msg.sender]);
 
@@ -152,23 +138,20 @@ contract ConstitutionRegistry {
 
     voteId = allConstitutions[constitution].allVotes.length++;
 
-    Vote v = allConstitutions[constitution].allVotes[voteId];
-    v.voter = msg.sender;
-    v.inSupport = inSupport;
-    v.timestamp = now;
+    allConstitutions[constitution].allVotes[voteId] = Vote({voter: msg.sender, inSupport: voteInSupport, timestamp: now});
+    allConstitutions[constitution].numVotes++;
 
-    NewVote(constitution, msg.sender, inSupport, voteId);
+    NewVote(constitution, msg.sender, voteInSupport, voteId);
   }
 
-  function getVote(bytes32 constitution, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
-    Vote v = allConstitutions[constitution].allVotes[voteId];
-    voter = v.voter;
-    inSupport = v.inSupport;
-    timestamp = v.timestamp;
+  function getVote(uint constitution, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
+    voter = allConstitutions[constitution].allVotes[voteId].voter;
+    inSupport = allConstitutions[constitution].allVotes[voteId].inSupport;
+    timestamp = allConstitutions[constitution].allVotes[voteId].timestamp;
   }
 
     // Used by NationFactory
-  function exist(bytes32 constitution) returns (bool) {
+  function exist(uint constitution) returns (bool) {
     return allConstitutions[constitution].maintainer != address(0x0);
   }
 }

@@ -1,16 +1,19 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.13;
 
 contract ContractRegistry {
-  mapping (address => Contract) public allContracts;
+  Contract[] public allContracts;
+  uint public numContracts;
 
   struct Contract {
     address owner;
+    address at;
 
     bool isActive;
     uint activeSince;
     uint inactiveSince;
 
     Vote[] allVotes;
+    uint numVotes;
     mapping (address => bool) didVote;
   }
 
@@ -21,63 +24,63 @@ contract ContractRegistry {
     uint timestamp;
   }
 
-  event ContractAdded(address contractAddr, address owner);
-  event ContractDeactivated(address contractAddr);
+  event ContractAdded(address contractAddr, address owner, uint contractId);
+  event ContractDeactivated(uint contractId);
 
-  event OwnershipTransfered(address contractAddr, address oldOwner, address newOwner);
+  event OwnershipTransfered(uint contractId, address oldOwner, address newOwner);
 
-  event NewVote(address contractAddr, address voter, bool inSupport, uint voteId);
+  event NewVote(uint contractId, address voter, bool inSupport, uint voteId);
 
-  function claimContract(address contractAddr) {
-    require(allContracts[contractAddr].owner == address(0x0));
+  function claimContract(address contractAddr) returns (uint contractId) {
+    contractId = allContracts.length++;
 
-    Contract c = allContracts[contractAddr];
-    c.owner = msg.sender;
-    c.isActive = true;
-    c.activeSince = now;
+    allContracts[contractId].owner = msg.sender;
+    allContracts[contractId].at = contractAddr;
+    allContracts[contractId].isActive = true;
+    allContracts[contractId].activeSince = now;
 
-    ContractAdded(contractAddr, msg.sender);
+    numContracts++;
+
+    ContractAdded(contractAddr, msg.sender, contractId);
   }
 
-  function transferOwnership(address contractAddr, address newOwner) {
+  function transferOwnership(uint contractId, address newOwner) {
     require(msg.sender != newOwner);
-    require(allContracts[contractAddr].owner == msg.sender);
-    require(allContracts[contractAddr].isActive);
+    require(allContracts[contractId].owner == msg.sender);
+    require(allContracts[contractId].isActive);
 
-    allContracts[contractAddr].owner = newOwner;
+    allContracts[contractId].owner = newOwner;
 
-    OwnershipTransfered(contractAddr, msg.sender, newOwner);
+    OwnershipTransfered(contractId, msg.sender, newOwner);
   }
 
-  function deactivateContract(address contractAddr) {
-    require(allContracts[contractAddr].owner == msg.sender);
+  function deactivateContract(uint contractId) {
+    require(allContracts[contractId].owner == msg.sender);
 
-    allContracts[contractAddr].isActive = false;
-    allContracts[contractAddr].inactiveSince = now;
+    allContracts[contractId].isActive = false;
+    allContracts[contractId].inactiveSince = now;
 
-    ContractDeactivated(contractAddr);
+    ContractDeactivated(contractId);
   }
 
-  function voteOnContract(address contractAddr, bool inSupport) returns (uint voteId) {
-    require(allContracts[contractAddr].isActive);
-    require(!allContracts[contractAddr].didVote[msg.sender]);
+  function voteOnContract(uint contractId, bool voteInSupport) returns (uint voteId) {
+    require(allContracts[contractId].isActive);
+    require(!allContracts[contractId].didVote[msg.sender]);
 
-    allContracts[contractAddr].didVote[msg.sender] = true;
+    allContracts[contractId].didVote[msg.sender] = true;
 
-    voteId = allContracts[contractAddr].allVotes.length++;
+    voteId = allContracts[contractId].allVotes.length++;
 
-    Vote v = allContracts[contractAddr].allVotes[voteId];
-    v.voter = msg.sender;
-    v.inSupport = inSupport;
-    v.timestamp = now;
+    allContracts[contractId].allVotes[voteId] = Vote({voter: msg.sender, inSupport: voteInSupport, timestamp: now});
 
-    NewVote(contractAddr, msg.sender, inSupport, voteId);
+    allContracts[contractId].numVotes++;
+
+    NewVote(contractId, msg.sender, voteInSupport, voteId);
   }
 
-  function getVote(address contractAddr, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
-    Vote v = allContracts[contractAddr].allVotes[voteId];
-    voter = v.voter;
-    inSupport = v.inSupport;
-    timestamp = v.timestamp;
+  function getVote(uint contractId, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
+    voter = allContracts[contractId].allVotes[voteId].voter;
+    inSupport = allContracts[contractId].allVotes[voteId].inSupport;
+    timestamp = allContracts[contractId].allVotes[voteId].timestamp;
   }
 }

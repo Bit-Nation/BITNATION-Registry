@@ -1,12 +1,13 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.13;
 
-import "zeppelin/contracts/ownership/Ownable.sol";
+import "/zeppelin/contracts/ownership/Ownable.sol";
 
 import "./registry/ConstitutionRegistry.sol";
 import "./registry/CodeOfLawRegistry.sol";
 
 contract NationFactory is Ownable {
-  mapping (bytes32 => Nation) public allNations;
+  Nation[] public allNations;
+  uint public numNations;
 
   ConstitutionRegistry public constitutionRegistry;
   CodeOfLawRegistry public codeOfLawRegistry;
@@ -17,10 +18,11 @@ contract NationFactory is Ownable {
     string name;
     uint timestamp;
 
-    bytes32 constitution;
-    bytes32 codeOfLaw;
+    uint constitution;
+    uint codeOfLaw;
 
     Vote[] allVotes;
+    uint numVotes;
     mapping (address => bool) didVote;
   }
 
@@ -30,8 +32,8 @@ contract NationFactory is Ownable {
     uint timestamp;
   }
 
-  event NewNation(bytes32 nation, address at, string name, address registredBy);
-  event NewVote(bytes32 nation, address voter, bool inSupport, uint voteId);
+  event NewNation(uint nationId, address at, string name, address registredBy);
+  event NewVote(uint nationId, address voter, bool inSupport, uint voteId);
 
   event ConstitutionRegistryChanged(address newRegistry);
   event CodeOfLawRegistryChanged(address newRegistry);
@@ -57,46 +59,41 @@ contract NationFactory is Ownable {
     CodeOfLawRegistryChanged(newRegistry);
   }
 
-  function addNationAt(string name, address at, bytes32 constitution, bytes32 codeOfLaw) returns (bytes32 hash) {
-    hash = sha3(name, msg.sender);
-    require(allNations[hash].at == address(0x0));
-
+  function addNationAt(string name, address at, uint constitutionId, uint codeOfLawId) returns (uint nationId) {
     // Check that the constitution & codeOfLaw exists
-    require(constitutionRegistry.exist(constitution));
-    require(codeOfLawRegistry.exist(codeOfLaw));
+    require(constitutionRegistry.exist(constitutionId));
+    require(codeOfLawRegistry.exist(codeOfLawId));
 
-    Nation n = allNations[hash];
-    n.at = at;
-    n.name = name;
-    n.timestamp = now;
-    n.constitution = constitution;
-    n.codeOfLaw = codeOfLaw;
+    nationId = allNations.length++;
 
-    NewNation(hash, at, name, msg.sender);
+    allNations[nationId].at = at;
+    allNations[nationId].name = name;
+    allNations[nationId].timestamp = now;
+    allNations[nationId].constitution = constitutionId;
+    allNations[nationId].codeOfLaw = codeOfLawId;
+
+    NewNation(nationId, at, name, msg.sender);
   }
 
-  function vote(bytes32 nation, bool inSupport) returns (uint voteId) {
+  function vote(uint nationId, bool voteInSupport) returns (uint voteId) {
     // Check if nation exist
-    require(allNations[nation].at != address(0x0));
+    require(allNations[nationId].at != address(0x0));
 
     // Check if already voted
-    require(!allNations[nation].didVote[msg.sender]);
+    require(!allNations[nationId].didVote[msg.sender]);
 
-    allNations[nation].didVote[msg.sender] = true;
+    allNations[nationId].didVote[msg.sender] = true;
 
-    voteId = allNations[nation].allVotes.length++;
-    Vote v = allNations[nation].allVotes[voteId];
-    v.voter = msg.sender;
-    v.inSupport = inSupport;
-    v.timestamp = now;
+    voteId = allNations[nationId].allVotes.length++;
+    allNations[nationId].allVotes[voteId] = Vote({voter: msg.sender, inSupport: voteInSupport, timestamp: now});
+    allNations[nationId].numVotes++;
 
-    NewVote(nation, msg.sender, inSupport, voteId);
+    NewVote(nationId, msg.sender, voteInSupport, voteId);
   }
 
-  function getVote(bytes32 nation, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
-    Vote v = allNations[nation].allVotes[voteId];
-    voter = v.voter;
-    inSupport = v.inSupport;
-    timestamp = v.timestamp;
+  function getVote(uint nationId, uint voteId) constant returns (address voter, bool inSupport, uint timestamp) {
+    voter = allNations[nationId].allVotes[voteId].voter;
+    inSupport = allNations[nationId].allVotes[voteId].inSupport;
+    timestamp = allNations[nationId].allVotes[voteId].timestamp;
   }
 }

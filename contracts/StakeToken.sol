@@ -1,4 +1,4 @@
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.13;
 
 import "zeppelin/contracts/token/StandardToken.sol";
 import "zeppelin/contracts/ownership/Ownable.sol";
@@ -25,12 +25,12 @@ contract StakeToken is Ownable, StandardToken {
   bool public freezed = false;
 
   modifier whenNotFreezed() {
-    if (freezed) throw;
+    require(!freezed);
     _;
   }
 
   modifier whenFreezed {
-    if (!freezed) throw;
+    require(freezed);
     _;
   }
 
@@ -47,11 +47,11 @@ contract StakeToken is Ownable, StandardToken {
     return true;
   }
 
-  function transfer(address _to, uint _value) whenNotFreezed {
+  function transfer(address _to, uint _value) whenNotFreezed returns (bool) {
     return super.transfer(_to, _value);
   }
 
-  function transferFrom(address _from, address _to, uint _value) whenNotFreezed {
+  function transferFrom(address _from, address _to, uint _value) whenNotFreezed returns (bool) {
     return super.transferFrom(_from, _to, _value);
   }
 
@@ -63,7 +63,7 @@ contract StakeToken is Ownable, StandardToken {
   uint public totalSupply = 0;
 
   modifier canMint() {
-    if(mintingFinished) throw;
+    require(!mintingFinished);
     _;
   }
 
